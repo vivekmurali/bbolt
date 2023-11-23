@@ -60,6 +60,38 @@ func TestBucket_Get_FromNode(t *testing.T) {
 	}
 }
 
+// Ensure Cache works
+func TestBucket_Get_Cache(t *testing.T) {
+	db := btesting.MustCreateDB(t)
+
+	if err := db.Update(func(tx *bolt.Tx) error {
+		b, err := tx.CreateBucket([]byte("bucket"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := b.Put([]byte("foo"), []byte("bar")); err != nil {
+			t.Fatal(err)
+		}
+		if v := b.Get([]byte("foo")); !bytes.Equal(v, []byte("bar")) {
+			t.Fatalf("unexpected value: %v", v)
+		}
+		if err := b.Put([]byte("foo"), []byte("bar")); err != nil {
+			t.Fatal(err)
+		}
+		if v := b.Get([]byte("foo")); !bytes.Equal(v, []byte("bar")) {
+			t.Fatalf("unexpected value: %v", v)
+		}
+		if v := b.Get([]byte("foo")); !bytes.Equal(v, []byte("bar")) {
+			t.Fatalf("unexpected value: %v", v)
+		}
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+}
+
+
+
 // Ensure that a bucket retrieved via Get() returns a nil.
 func TestBucket_Get_IncompatibleValue(t *testing.T) {
 	db := btesting.MustCreateDB(t)
@@ -2011,6 +2043,9 @@ func ExampleBucket_Delete() {
 	// The value of 'foo' was: bar
 	// The value of 'foo' is now: nil
 }
+
+
+	
 
 func ExampleBucket_ForEach() {
 	// Open the database.

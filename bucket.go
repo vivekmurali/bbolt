@@ -7,6 +7,7 @@ import (
 
 	"go.etcd.io/bbolt/errors"
 	"go.etcd.io/bbolt/internal/common"
+	"github.com/hashicorp/golang-lru/v2"
 )
 
 const (
@@ -41,6 +42,16 @@ type Bucket struct {
 	//
 	// This is non-persisted across transactions so it must be set in every Tx.
 	FillPercent float64
+}
+
+var cache *lru.Cache[string, []byte]
+var err error
+
+func init(){
+	cache, err = lru.New[string, []byte](128)
+	if err != nil {
+		fmt.Errorf("Error initializing cache: %v\n", err)
+	}
 }
 
 // newBucket returns a new bucket associated with a transaction.
@@ -296,8 +307,11 @@ func (b *Bucket) DeleteBucket(key []byte) error {
 // The returned value is only valid for the life of the transaction.
 // The returned memory is owned by bbolt and must never be modified; writing to this memory might corrupt the database.
 func (b *Bucket) Get(key []byte) []byte {
+	val, ok := cache.Get(string(key))
+	if ok {
+		return val
+	}
 	k, v, flags := b.Cursor().seek(key)
-
 	// Return nil if this is a bucket.
 	if (flags & common.BucketLeafFlag) != 0 {
 		return nil
@@ -307,6 +321,7 @@ func (b *Bucket) Get(key []byte) []byte {
 	if !bytes.Equal(key, k) {
 		return nil
 	}
+	cache.Add(string(key), v)
 	return v
 }
 
@@ -341,7 +356,9 @@ func (b *Bucket) Put(key []byte, value []byte) error {
 	// it from being marked as leaking, and accordingly cannot be allocated on stack.
 	newKey := cloneBytes(key)
 	c.node().put(newKey, newKey, value, 0, 0)
-
+	if cache.Contains(string(key)){
+		cache.Add(string(key), value)
+	}
 	return nil
 }
 
