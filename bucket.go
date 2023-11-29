@@ -2,6 +2,7 @@ package bbolt
 
 import (
 	"bytes"
+	//"os"
 	"fmt"
 	"unsafe"
 
@@ -46,12 +47,18 @@ type Bucket struct {
 
 var cache *lru.Cache[string, []byte]
 var err error
-
+//var f *os.File
 func init(){
 	cache, err = lru.New[string, []byte](128)
 	if err != nil {
 		fmt.Errorf("Error initializing cache: %v\n", err)
 	}
+	/*
+	f, err = os.Create("/users/mvivek/results/lru.txt")
+	if err != nil {
+		fmt.Errorf("Error creating/opening results file: %v\n", err)
+	}
+	*/
 }
 
 // newBucket returns a new bucket associated with a transaction.
@@ -309,6 +316,12 @@ func (b *Bucket) DeleteBucket(key []byte) error {
 func (b *Bucket) Get(key []byte) []byte {
 	val, ok := cache.Get(string(key))
 	if ok {
+		/*
+		_, err = f.WriteString("hit\n")
+		if err != nil {
+			fmt.Errorf("Could not write to file: %v\n", err)
+		}
+		*/
 		return val
 	}
 	k, v, flags := b.Cursor().seek(key)
@@ -322,6 +335,12 @@ func (b *Bucket) Get(key []byte) []byte {
 		return nil
 	}
 	cache.Add(string(key), v)
+	/*
+	_, err = f.WriteString("miss\n")
+		if err != nil {
+			fmt.Errorf("Could not write to file: %v\n", err)
+		}
+		*/
 	return v
 }
 
@@ -356,9 +375,7 @@ func (b *Bucket) Put(key []byte, value []byte) error {
 	// it from being marked as leaking, and accordingly cannot be allocated on stack.
 	newKey := cloneBytes(key)
 	c.node().put(newKey, newKey, value, 0, 0)
-	if cache.Contains(string(key)){
-		cache.Add(string(key), value)
-	}
+	cache.Add(string(key), value)
 	return nil
 }
 
