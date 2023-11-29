@@ -7,7 +7,7 @@ import (
 
 	"go.etcd.io/bbolt/errors"
 	"go.etcd.io/bbolt/internal/common"
-	"github.com/hashicorp/golang-lru/v2"
+	"github.com/hashicorp/golang-lru/arc/v2"
 )
 
 const (
@@ -44,12 +44,13 @@ type Bucket struct {
 	FillPercent float64
 }
 
-var cache *lru.TwoQueueCache[string, []byte]
+var cache *arc.ARCCache[string, []byte]
 var err error
 
 func init(){
 	//cache, err = lru.New[string, []byte](128)
-	cache, err = lru.New2Q[string, []byte](128)
+	//cache, err = lru.New2Q[string, []byte](128)
+	cache, err = arc.NewARC[string, []byte](128)
 	if err != nil {
 		fmt.Errorf("Error initializing cache: %v\n", err)
 	}
