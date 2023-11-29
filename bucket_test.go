@@ -63,7 +63,6 @@ func TestBucket_Get_FromNode(t *testing.T) {
 // Ensure Cache works
 func TestBucket_Get_Cache(t *testing.T) {
 	db := btesting.MustCreateDB(t)
-
 	if err := db.Update(func(tx *bolt.Tx) error {
 		b, err := tx.CreateBucket([]byte("bucket"))
 		if err != nil {

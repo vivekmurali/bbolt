@@ -44,11 +44,12 @@ type Bucket struct {
 	FillPercent float64
 }
 
-var cache *lru.Cache[string, []byte]
+var cache *lru.TwoQueueCache[string, []byte]
 var err error
 
 func init(){
-	cache, err = lru.New[string, []byte](128)
+	//cache, err = lru.New[string, []byte](128)
+	cache, err = lru.New2Q[string, []byte](128)
 	if err != nil {
 		fmt.Errorf("Error initializing cache: %v\n", err)
 	}
