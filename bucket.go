@@ -43,11 +43,10 @@ type Bucket struct {
 	//
 	// This is non-persisted across transactions so it must be set in every Tx.
 	FillPercent float64
+	cache *lru.Cache[string, []byte]
 }
 
-var cache *lru.Cache[string, []byte]
-var err error
-//var f *os.File
+/*
 func init(){
 	cache, err = lru.New[string, []byte](128)
 	if err != nil {
@@ -58,12 +57,16 @@ func init(){
 	if err != nil {
 		fmt.Errorf("Error creating/opening results file: %v\n", err)
 	}
-	*/
 }
+*/
 
 // newBucket returns a new bucket associated with a transaction.
 func newBucket(tx *Tx) Bucket {
-	var b = Bucket{tx: tx, FillPercent: DefaultFillPercent}
+	cache, err := lru.New[string, []byte](128)
+	if err != nil {
+		fmt.Errorf("Error creating cache: %v\n",err)
+	}
+	var b = Bucket{tx: tx, FillPercent: DefaultFillPercent, cache: cache}
 	if tx.writable {
 		b.buckets = make(map[string]*Bucket)
 		b.nodes = make(map[common.Pgid]*node)
@@ -183,12 +186,17 @@ func (b *Bucket) CreateBucket(key []byte) (*Bucket, error) {
 		}
 		return nil, errors.ErrIncompatibleValue
 	}
+	cache, err := lru.New[string, []byte](128)
+	if err != nil {
+		fmt.Errorf("Error initializing cache: %v\n", err)
+	}
 
 	// Create empty, inline bucket.
 	var bucket = Bucket{
 		InBucket:    &common.InBucket{},
 		rootNode:    &node{isLeaf: true},
 		FillPercent: DefaultFillPercent,
+		cache: cache,
 	}
 	var value = bucket.write()
 
@@ -240,12 +248,17 @@ func (b *Bucket) CreateBucketIfNotExists(key []byte) (*Bucket, error) {
 		}
 		return nil, errors.ErrIncompatibleValue
 	}
+	cache, err := lru.New[string, []byte](128)
+	if err != nil {
+		fmt.Errorf("Error initializing cache: %v\n", err)
+	}
 
 	// Create empty, inline bucket.
 	var bucket = Bucket{
 		InBucket:    &common.InBucket{},
 		rootNode:    &node{isLeaf: true},
 		FillPercent: DefaultFillPercent,
+		cache: cache,
 	}
 	var value = bucket.write()
 
@@ -314,14 +327,19 @@ func (b *Bucket) DeleteBucket(key []byte) error {
 // The returned value is only valid for the life of the transaction.
 // The returned memory is owned by bbolt and must never be modified; writing to this memory might corrupt the database.
 func (b *Bucket) Get(key []byte) []byte {
+		/*
 	val, ok := cache.Get(string(key))
 	if ok {
-		/*
 		_, err = f.WriteString("hit\n")
 		if err != nil {
 			fmt.Errorf("Could not write to file: %v\n", err)
 		}
+		return val
+	}
 		*/
+
+	val, ok := b.cache.Get(string(key))
+	if ok {
 		return val
 	}
 	k, v, flags := b.Cursor().seek(key)
@@ -334,7 +352,7 @@ func (b *Bucket) Get(key []byte) []byte {
 	if !bytes.Equal(key, k) {
 		return nil
 	}
-	cache.Add(string(key), v)
+	b.cache.Add(string(key), v)
 	/*
 	_, err = f.WriteString("miss\n")
 		if err != nil {
@@ -375,7 +393,9 @@ func (b *Bucket) Put(key []byte, value []byte) error {
 	// it from being marked as leaking, and accordingly cannot be allocated on stack.
 	newKey := cloneBytes(key)
 	c.node().put(newKey, newKey, value, 0, 0)
-	cache.Add(string(key), value)
+	if b.cache.Contains(string(key)) {
+		b.cache.Add(string(key), value)
+	}
 	return nil
 }
 
