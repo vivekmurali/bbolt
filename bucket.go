@@ -48,7 +48,7 @@ type Bucket struct {
 
 /*
 func init(){
-	cache, err = lru.New[string, []byte](128)
+	cache, err = lru.New[string, []byte](256)
 	if err != nil {
 		fmt.Errorf("Error initializing cache: %v\n", err)
 	}
@@ -62,7 +62,7 @@ func init(){
 
 // newBucket returns a new bucket associated with a transaction.
 func newBucket(tx *Tx) Bucket {
-	cache, err := lru.New[string, []byte](128)
+	cache, err := lru.New[string, []byte](256)
 	if err != nil {
 		fmt.Errorf("Error creating cache: %v\n",err)
 	}
@@ -186,7 +186,7 @@ func (b *Bucket) CreateBucket(key []byte) (*Bucket, error) {
 		}
 		return nil, errors.ErrIncompatibleValue
 	}
-	cache, err := lru.New[string, []byte](128)
+	cache, err := lru.New[string, []byte](256)
 	if err != nil {
 		fmt.Errorf("Error initializing cache: %v\n", err)
 	}
@@ -248,7 +248,7 @@ func (b *Bucket) CreateBucketIfNotExists(key []byte) (*Bucket, error) {
 		}
 		return nil, errors.ErrIncompatibleValue
 	}
-	cache, err := lru.New[string, []byte](128)
+	cache, err := lru.New[string, []byte](256)
 	if err != nil {
 		fmt.Errorf("Error initializing cache: %v\n", err)
 	}
